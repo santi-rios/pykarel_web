@@ -9,6 +9,6 @@ setup(
     packages=["pykarel_web"],
     install_requires=["matplotlib>=3.0", "ipython"],
     python_requires=">=3.8",
-    author="Tu Nombre",
+    author="Santiago Garcia-Rios",
     description="Karel para Python en el navegador con Pyodide"
 )
