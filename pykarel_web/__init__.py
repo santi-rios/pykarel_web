@@ -3,6 +3,11 @@ from IPython.display import display, HTML
 import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
+import numpy as np
+
+class KarelError(Exception):
+    """Clase personalizada para errores de Karel"""
+    pass
 
 class Karel:
     """
@@ -13,125 +18,209 @@ class Karel:
     
     Parámetros:
     -----------
-    mundo : str
-        Tipo de mundo predefinido ("default", "obstaculos", "laberinto", etc.)
+    mundo : str o list
+        Tipo de mundo predefinido o matriz personalizada
     x_inicial : int
-        Posición inicial de Karel en el eje X
+        Posición inicial de Karel en el eje X (comienza en 0)
     y_inicial : int
-        Posición inicial de Karel en el eje Y
+        Posición inicial de Karel en el eje Y (comienza en 0)
     direccion_inicial : int
         Dirección inicial de Karel (0:Este, 1:Norte, 2:Oeste, 3:Sur)
+    cosos_iniciales : int
+        Cantidad inicial de cosos que lleva Karel
     """
     
-    def __init__(self, mundo="default", x_inicial=0, y_inicial=0, direccion_inicial=0):
+    def __init__(self, mundo="default", x_inicial=0, y_inicial=0, direccion_inicial=0, cosos_iniciales=0):
+        self.mundo = self._crear_mundo(mundo)
+        self._validar_posicion_inicial(x_inicial, y_inicial)
+        
         self.x = x_inicial
         self.y = y_inicial
-        self.direction = direccion_inicial  # 0:Este, 1:Norte, 2:Oeste, 3:Sur
-        self.mundo = self._crear_mundo(mundo)
-        self.beepers = {}
+        self.direction = direccion_inicial
+        self.beepers = self._inicializar_beepers()
+        self.cosos = cosos_iniciales
         self.step = 0
         self.images = []
-        self._render()  # Renderizar estado inicial
-    
+        self._render()
+
+    def _validar_posicion_inicial(self, x, y):
+        """Valida que la posición inicial no esté en un obstáculo"""
+        if not (0 <= x < len(self.mundo[0]) and 0 <= y < len(self.mundo)):
+            raise KarelError("Posición inicial fuera del mundo")
+        if self.mundo[y][x] == 1:
+            raise KarelError("Karel no puede iniciar en un obstáculo")
+
     def _crear_mundo(self, tipo):
-        # Configuraciones predefinidas de mundos
-        if tipo == "default":
-            return [[0]*5 for _ in range(5)]  # Mundo 5x5 vacío
-        elif tipo == "obstaculos":
-            return [
-                [0,0,1,0,0],
-                [0,1,0,1,0],
-                [0,0,0,0,0]
-            ]
-        elif tipo == "laberinto":
-            return [
-                [0,1,0,0,0],
-                [0,1,0,1,0],
-                [0,1,0,1,0],
-                [0,0,0,1,0],
-                [1,1,0,0,0]
-            ]
-        elif tipo == "zigzag":
-            return [
-                [0,0,0,0,1],
-                [1,1,1,0,1],
-                [0,0,0,0,1],
-                [1,1,1,0,0],
-                [0,0,0,0,0]
-            ]
-        elif tipo == "espiral":
-            return [
-                [0,0,0,0,0],
-                [0,1,1,1,0],
-                [0,1,0,1,0],
-                [0,1,0,0,0],
-                [0,0,0,0,0]
-            ]
-        return [[0]*5 for _ in range(5)]  # Default
-    
-    def _render(self):
-        fig, ax = plt.subplots(figsize=(5,5))
+        """Crea la matriz del mundo con mejor visualización"""
+        if isinstance(tipo, list):
+            return tipo  # Permite mundos personalizados
         
-        # Dibujar mundo
+        mundos = {
+            "default": [
+                [0,0,0,0,0],
+                [0,0,0,0,0],
+                [0,0,0,0,0],
+                [0,0,0,0,0],
+                [0,0,0,0,0]
+            ],
+            "obstaculos": [
+                [0,1,0,1,0],
+                [1,0,1,0,1],
+                [0,1,0,1,0],
+                [1,0,1,0,1],
+                [0,1,0,1,0]
+            ],
+            "laberinto": [
+                [0,1,0,0,0],
+                [0,1,1,1,0],
+                [0,0,0,1,0],
+                [1,1,0,1,0],
+                [0,0,0,1,0]
+            ],
+            "cosos": [
+                [0,2,0,3,0],
+                [1,0,4,0,5],
+                [0,6,0,7,0],
+                [8,0,9,0,10],
+                [0,11,0,12,0]
+            ]
+        }
+        return mundos.get(tipo, mundos["default"])
+    
+    def _inicializar_beepers(self):
+        """Inicializa cosos en posiciones específicas para algunos mundos"""
+        return {
+            (2,2): 5,
+            (3,4): 3,
+            (0,0): 1
+        }
+
+    def _render(self):
+        """Renderiza el mundo con mejoras visuales"""
+        fig, ax = plt.subplots(figsize=(7,7))
+        
+        # Dibujar cuadrícula
+        for x in range(len(self.mundo[0])+1):
+            ax.axvline(x, color='gray', linestyle=':', linewidth=0.5)
+        for y in range(len(self.mundo)+1):
+            ax.axhline(y, color='gray', linestyle=':', linewidth=0.5)
+        
+        # Dibujar obstáculos
         for y in range(len(self.mundo)):
             for x in range(len(self.mundo[0])):
                 if self.mundo[y][x] == 1:
-                    ax.add_patch(plt.Rectangle((x, y), 1, 1, color='gray'))
+                    ax.add_patch(plt.Rectangle(
+                        (x, y), 1, 1, 
+                        color='#2c3e50', 
+                        hatch='//', 
+                        alpha=0.7
+                    ))
         
-        # Dibujar a Karel
-        directions = ['→', '↑', '←', '↓']
-        ax.text(self.x + 0.5, self.y + 0.5, directions[self.direction],
-               fontsize=20, ha='center', va='center')
+        # Dibujar cosos/zumbadores
+        for (x, y), cantidad in self.beepers.items():
+            if cantidad > 0:
+                ax.plot(x + 0.5, y + 0.5, 'ro', markersize=15, alpha=0.5)
+                ax.text(x + 0.5, y + 0.5, str(cantidad), 
+                       ha='center', va='center', 
+                       color='white', weight='bold')
         
-        # Dibujar zumbadores
-        if self.beepers.get((self.x, self.y), 0) > 0:
-            ax.text(self.x + 0.8, self.y + 0.2, str(self.beepers[(self.x, self.y)]),
-                   color='red', fontsize=12)
+        # Dibujar Karel
+        colores = ['#e74c3c', '#2980b9', '#27ae60', '#f1c40f']
+        arrow = ['→', '↑', '←', '↓']
+        ax.text(
+            self.x + 0.5, self.y + 0.5, 
+            arrow[self.direction],
+            fontsize=30,
+            color=colores[self.direction],
+            ha='center', 
+            va='center',
+            fontweight='bold'
+        )
         
+        # Configuración del gráfico
         ax.set_xlim(0, len(self.mundo[0]))
         ax.set_ylim(0, len(self.mundo))
+        ax.set_xticks(np.arange(0, len(self.mundo[0])+1))
+        ax.set_yticks(np.arange(0, len(self.mundo)+1))
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.set_title(f"Karel - Paso {self.step}", fontweight='bold')
         ax.set_aspect('equal')
-        ax.axis('off')
         
         # Guardar imagen
         buf = BytesIO()
-        plt.savefig(buf, format='png')
+        plt.savefig(buf, format='png', dpi=80)
         plt.close()
         self.images.append(base64.b64encode(buf.getvalue()).decode('utf-8'))
-        # Limit the size of self.images to the last 100 images
-        if len(self.images) > 100:
-            self.images.pop(0)
         self.step += 1
-    
+
     def avanzar(self):
-        if self.frente_abierto():
-            offsets = [(1,0), (0,1), (-1,0), (0,-1)]
-            self.x += offsets[self.direction][0]
-            self.y += offsets[self.direction][1]
-            self._render()
-        else:
-            raise Exception("¡Oops! Karel no puede avanzar porque hay un obstáculo en el camino.")
-    
+        """Mueve a Karel una celda adelante si el camino está despejado"""
+        if not self.frente_abierto():
+            raise KarelError("¡Choque! No puedes avanzar - Hay un obstáculo")
+        
+        # Actualizar posición
+        movimientos = {
+            0: (1, 0),  # Este
+            1: (0, 1),  # Norte
+            2: (-1, 0),  # Oeste
+            3: (0, -1)   # Sur
+        }
+        dx, dy = movimientos[self.direction]
+        self.x += dx
+        self.y += dy
+        
+        # Verificar posición válida
+        if not (0 <= self.x < len(self.mundo[0])) or not (0 <= self.y < len(self.mundo)):
+            raise KarelError("¡Karel se salió del mundo!")
+        
+        self._render()
+
     def girar_izquierda(self):
+        """Gira a Karel 90 grados a la izquierda"""
         self.direction = (self.direction + 1) % 4
         self._render()
-    
+
     def poner_coso(self):
+        """Coloca un coso en la posición actual"""
+        if self.cosos <= 0:
+            raise KarelError("¡No tienes cosos para poner!")
+        
+        self.cosos -= 1
         self.beepers[(self.x, self.y)] = self.beepers.get((self.x, self.y), 0) + 1
         self._render()
-    
+
     def juntar_coso(self):
-        if self.hay_coso():
-            self.beepers[(self.x, self.y)] -= 1
-            self._render()
-        else:
-            raise Exception("¡Oops! No hay cosos/zumbadores para juntar en esta posición.")
-    
+        """Recoge un coso de la posición actual"""
+        if self.beepers.get((self.x, self.y), 0) < 1:
+            raise KarelError("¡No hay cosos para recoger aquí!")
+        
+        self.cosos += 1
+        self.beepers[(self.x, self.y)] -= 1
+        self._render()
+
     def frente_abierto(self):
-        next_x = self.x + [(1,0), (0,1), (-1,0), (0,-1)][self.direction][0]
-        next_y = self.y + [(1,0), (0,1), (-1,0), (0,-1)][self.direction][1]
-        return 0 <= next_x < len(self.mundo[0]) and 0 <= next_y < len(self.mundo)
-    
+        """Verifica si el frente está despejado"""
+        x, y = self.x, self.y
+        try:
+            dx, dy = {
+                0: (1, 0),   # Este
+                1: (0, 1),   # Norte
+                2: (-1, 0),  # Oeste
+                3: (0, -1)   # Sur
+            }[self.direction]
+            
+            new_x = x + dx
+            new_y = y + dy
+            
+            if new_x < 0 or new_y < 0:
+                return False
+                
+            return self.mundo[new_y][new_x] != 1
+            
+        except IndexError:
+            return False
+
     # Alias para mantener compatibilidad
     def front_is_clear(self):
         return self.frente_abierto()
