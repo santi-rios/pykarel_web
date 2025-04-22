@@ -239,3 +239,23 @@ class Karel:
     direccion_inicial : int
         Dirección inicial de Karel (0:Este, 1:Norte, 2:Oeste, 3:Sur)
     """
+
+def __init__(self, mundo="default", x_inicial=0, y_inicial=0, direccion_inicial=0):
+    self.x = x_inicial
+    self.y = y_inicial
+    self.direction = direccion_inicial  # 0:Este, 1:Norte, 2:Oeste, 3:Sur
+    self.mundo = self._crear_mundo(mundo)
+    self.beepers = {}
+    self.step = 0
+    self.images = []
+    self._render()  # Renderizar estado inicial
+
+def colocar_cosos_en_posicion(self, x, y, cantidad=1):
+    """Coloca una cantidad de cosos/zumbadores en una posición específica."""
+    self.beepers[(x, y)] = self.beepers.get((x, y), 0) + cantidad
+    self._render()
+
+def crear_mundo_personalizado(self, matriz):
+    """Define un mundo personalizado a partir de una matriz."""
+    self.mundo = matriz
+    self._render()
