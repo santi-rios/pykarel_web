@@ -130,7 +130,7 @@ class Karel:
         ax.text(
             self.x + 0.5, self.y + 0.5, 
             arrow[self.direction],
-            fontsize=30,
+            fontsize=50,
             color=colores[self.direction],
             ha='center', 
             va='center',
