@@ -5,10 +5,10 @@ from io import BytesIO
 import base64
 
 class Karel:
-    def __init__(self, mundo="default"):
-        self.x = 0
-        self.y = 0
-        self.direction = 0  # 0:Este, 1:Norte, 2:Oeste, 3:Sur
+    def __init__(self, mundo="default", x_inicial=0, y_inicial=0, direccion_inicial=0):
+        self.x = x_inicial
+        self.y = y_inicial
+        self.direction = direccion_inicial  # 0:Este, 1:Norte, 2:Oeste, 3:Sur
         self.mundo = self._crear_mundo(mundo)
         self.beepers = {}
         self.step = 0
@@ -41,7 +41,7 @@ class Karel:
                fontsize=20, ha='center', va='center')
         
         # Dibujar zumbadores
-        if (self.x, self.y) in self.beepers:
+        if self.beepers.get((self.x, self.y), 0) > 0:
             ax.text(self.x + 0.8, self.y + 0.2, str(self.beepers[(self.x, self.y)]),
                    color='red', fontsize=12)
         
@@ -55,6 +55,9 @@ class Karel:
         plt.savefig(buf, format='png')
         plt.close()
         self.images.append(base64.b64encode(buf.getvalue()).decode('utf-8'))
+        # Limit the size of self.images to the last 100 images
+        if len(self.images) > 100:
+            self.images.pop(0)
         self.step += 1
     
     def avanzar(self):
@@ -77,16 +80,20 @@ class Karel:
             self.beepers[(self.x, self.y)] -= 1
             self._render()
     
-    def frente_abierto(self):
+    def front_is_clear(self):
         next_x = self.x + [(1,0), (0,1), (-1,0), (0,-1)][self.direction][0]
         next_y = self.y + [(1,0), (0,1), (-1,0), (0,-1)][self.direction][1]
         return 0 <= next_x < len(self.mundo[0]) and 0 <= next_y < len(self.mundo)
     
-    def ejecutar_acciones(self):
+    def ejecutar_acciones(self, max_images=10, page=1):
+        """Displays a limited number of images with optional pagination."""
+        start = (page - 1) * max_images
+        end = start + max_images
         html = "<div style='display:flex;flex-wrap:wrap'>"
-        for img in self.images:
+        for img in self.images[start:end]:
             html += f"<img src='data:image/png;base64,{img}' style='margin:5px;width:200px'>"
         html += "</div>"
+        html += f"<p>Page {page} of {((len(self.images) - 1) // max_images) + 1}</p>"
         display(HTML(html))
 
     def girar_derecha(self):
@@ -104,7 +111,7 @@ class Karel:
         # Guardar dirección actual
         dir_actual = self.direction
         self.direction = (self.direction + 1) % 4
-        resultado = self.frente_abierto()
+        resultado = self.front_is_clear()
         # Restaurar dirección
         self.direction = dir_actual
         return resultado
@@ -121,7 +128,7 @@ class Karel:
     
     def frente_bloqueado(self):
         """Verifica si el frente está bloqueado."""
-        return not self.frente_abierto()
+        return not self.front_is_clear()
     
     def contar_cosos(self):
         """Devuelve el número de cosos/zumbadores en la posición actual."""
@@ -164,8 +171,8 @@ def _crear_mundo(self, tipo):
         ]
     return [[0]*5 for _ in range(5)]  # Default
 
-def ayuda(self):
-    """Muestra la ayuda y descripción de los comandos disponibles."""
+def help():
+    """Displays help and a description of the available commands."""
     help_text = """
     <h3>Comandos de Karel:</h3>
     <ul>
@@ -213,7 +220,7 @@ def juntar_coso(self):
     else:
         raise Exception("¡Oops! No hay cosos/zumbadores para juntar en esta posición.")
     
-º1
+
 class Karel:
     """
     Karel es un robot virtual que puede moverse en un mundo de cuadrícula.
