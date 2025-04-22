@@ -5,6 +5,24 @@ from io import BytesIO
 import base64
 
 class Karel:
+    """
+    Karel es un robot virtual que puede moverse en un mundo de cuadrícula.
+    
+    Esta clase implementa las acciones básicas de Karel y permite visualizar
+    sus movimientos en un entorno interactivo de Jupyter Notebook.
+    
+    Parámetros:
+    -----------
+    mundo : str
+        Tipo de mundo predefinido ("default", "obstaculos", "laberinto", etc.)
+    x_inicial : int
+        Posición inicial de Karel en el eje X
+    y_inicial : int
+        Posición inicial de Karel en el eje Y
+    direccion_inicial : int
+        Dirección inicial de Karel (0:Este, 1:Norte, 2:Oeste, 3:Sur)
+    """
+    
     def __init__(self, mundo="default", x_inicial=0, y_inicial=0, direccion_inicial=0):
         self.x = x_inicial
         self.y = y_inicial
@@ -13,6 +31,7 @@ class Karel:
         self.beepers = {}
         self.step = 0
         self.images = []
+        self._render()  # Renderizar estado inicial
     
     def _crear_mundo(self, tipo):
         # Configuraciones predefinidas de mundos
@@ -22,6 +41,30 @@ class Karel:
             return [
                 [0,0,1,0,0],
                 [0,1,0,1,0],
+                [0,0,0,0,0]
+            ]
+        elif tipo == "laberinto":
+            return [
+                [0,1,0,0,0],
+                [0,1,0,1,0],
+                [0,1,0,1,0],
+                [0,0,0,1,0],
+                [1,1,0,0,0]
+            ]
+        elif tipo == "zigzag":
+            return [
+                [0,0,0,0,1],
+                [1,1,1,0,1],
+                [0,0,0,0,1],
+                [1,1,1,0,0],
+                [0,0,0,0,0]
+            ]
+        elif tipo == "espiral":
+            return [
+                [0,0,0,0,0],
+                [0,1,1,1,0],
+                [0,1,0,1,0],
+                [0,1,0,0,0],
                 [0,0,0,0,0]
             ]
         return [[0]*5 for _ in range(5)]  # Default
@@ -61,11 +104,13 @@ class Karel:
         self.step += 1
     
     def avanzar(self):
-        if self.front_is_clear():
+        if self.frente_abierto():
             offsets = [(1,0), (0,1), (-1,0), (0,-1)]
             self.x += offsets[self.direction][0]
             self.y += offsets[self.direction][1]
             self._render()
+        else:
+            raise Exception("¡Oops! Karel no puede avanzar porque hay un obstáculo en el camino.")
     
     def girar_izquierda(self):
         self.direction = (self.direction + 1) % 4
@@ -76,14 +121,20 @@ class Karel:
         self._render()
     
     def juntar_coso(self):
-        if self.beepers.get((self.x, self.y), 0) > 0:
+        if self.hay_coso():
             self.beepers[(self.x, self.y)] -= 1
             self._render()
+        else:
+            raise Exception("¡Oops! No hay cosos/zumbadores para juntar en esta posición.")
     
-    def front_is_clear(self):
+    def frente_abierto(self):
         next_x = self.x + [(1,0), (0,1), (-1,0), (0,-1)][self.direction][0]
         next_y = self.y + [(1,0), (0,1), (-1,0), (0,-1)][self.direction][1]
         return 0 <= next_x < len(self.mundo[0]) and 0 <= next_y < len(self.mundo)
+    
+    # Alias para mantener compatibilidad
+    def front_is_clear(self):
+        return self.frente_abierto()
     
     def ejecutar_acciones(self, max_images=10, page=1):
         """Displays a limited number of images with optional pagination."""
@@ -95,7 +146,7 @@ class Karel:
         html += "</div>"
         html += f"<p>Page {page} of {((len(self.images) - 1) // max_images) + 1}</p>"
         display(HTML(html))
-
+    
     def girar_derecha(self):
         """Gira Karel 90 grados a la derecha."""
         # Girar a la izquierda tres veces es equivalente a girar a la derecha una vez
@@ -111,7 +162,7 @@ class Karel:
         # Guardar dirección actual
         dir_actual = self.direction
         self.direction = (self.direction + 1) % 4
-        resultado = self.front_is_clear()
+        resultado = self.frente_abierto()
         # Restaurar dirección
         self.direction = dir_actual
         return resultado
@@ -128,49 +179,34 @@ class Karel:
     
     def frente_bloqueado(self):
         """Verifica si el frente está bloqueado."""
-        return not self.front_is_clear()
+        return not self.frente_abierto()
     
     def contar_cosos(self):
         """Devuelve el número de cosos/zumbadores en la posición actual."""
         return self.beepers.get((self.x, self.y), 0)
     
+    def reiniciar(self, mundo="default", x_inicial=0, y_inicial=0, direccion_inicial=0):
+        """Reinicia a Karel a su estado inicial."""
+        self.__init__(mundo, x_inicial, y_inicial, direccion_inicial)
+    
+    def mostrar_ultima_accion(self):
+        """Muestra solo la última acción realizada."""
+        if len(self.images) > 0:
+            html = f"<img src='data:image/png;base64,{self.images[-1]}' style='width:300px'>"
+            display(HTML(html))
+    
+    def colocar_cosos_en_posicion(self, x, y, cantidad=1):
+        """Coloca una cantidad de cosos/zumbadores en una posición específica."""
+        self.beepers[(x, y)] = self.beepers.get((x, y), 0) + cantidad
+        self._render()
+    
+    def crear_mundo_personalizado(self, matriz):
+        """Define un mundo personalizado a partir de una matriz."""
+        self.mundo = matriz
+        self._render()
 
-def _crear_mundo(self, tipo):
-    # Configuraciones predefinidas de mundos
-    if tipo == "default":
-        return [[0]*5 for _ in range(5)]  # Mundo 5x5 vacío
-    elif tipo == "obstaculos":
-        return [
-            [0,0,1,0,0],
-            [0,1,0,1,0],
-            [0,0,0,0,0]
-        ]
-    elif tipo == "laberinto":
-        return [
-            [0,1,0,0,0],
-            [0,1,0,1,0],
-            [0,1,0,1,0],
-            [0,0,0,1,0],
-            [1,1,0,0,0]
-        ]
-    elif tipo == "zigzag":
-        return [
-            [0,0,0,0,1],
-            [1,1,1,0,1],
-            [0,0,0,0,1],
-            [1,1,1,0,0],
-            [0,0,0,0,0]
-        ]
-    elif tipo == "espiral":
-        return [
-            [0,0,0,0,0],
-            [0,1,1,1,0],
-            [0,1,0,1,0],
-            [0,1,0,0,0],
-            [0,0,0,0,0]
-        ]
-    return [[0]*5 for _ in range(5)]  # Default
 
+# Función de ayuda global
 def help():
     """Displays help and a description of the available commands."""
     help_text = """
@@ -193,69 +229,3 @@ def help():
     </ul>
     """
     display(HTML(help_text))
-
-def reiniciar(self, mundo="default", x_inicial=0, y_inicial=0, direccion_inicial=0):
-    """Reinicia a Karel a su estado inicial."""
-    self.__init__(mundo, x_inicial, y_inicial, direccion_inicial)
-
-def mostrar_ultima_accion(self):
-    """Muestra solo la última acción realizada."""
-    if len(self.images) > 0:
-        html = f"<img src='data:image/png;base64,{self.images[-1]}' style='width:300px'>"
-        display(HTML(html))
-
-def avanzar(self):
-    if self.frente_abierto():
-        offsets = [(1,0), (0,1), (-1,0), (0,-1)]
-        self.x += offsets[self.direction][0]
-        self.y += offsets[self.direction][1]
-        self._render()
-    else:
-        raise Exception("¡Oops! Karel no puede avanzar porque hay un obstáculo en el camino.")
-
-def juntar_coso(self):
-    if self.hay_coso():
-        self.beepers[(self.x, self.y)] -= 1
-        self._render()
-    else:
-        raise Exception("¡Oops! No hay cosos/zumbadores para juntar en esta posición.")
-    
-
-class Karel:
-    """
-    Karel es un robot virtual que puede moverse en un mundo de cuadrícula.
-    
-    Esta clase implementa las acciones básicas de Karel y permite visualizar
-    sus movimientos en un entorno interactivo de Jupyter Notebook.
-    
-    Parámetros:
-    -----------
-    mundo : str
-        Tipo de mundo predefinido ("default", "obstaculos", "laberinto", etc.)
-    x_inicial : int
-        Posición inicial de Karel en el eje X
-    y_inicial : int
-        Posición inicial de Karel en el eje Y
-    direccion_inicial : int
-        Dirección inicial de Karel (0:Este, 1:Norte, 2:Oeste, 3:Sur)
-    """
-
-def __init__(self, mundo="default", x_inicial=0, y_inicial=0, direccion_inicial=0):
-    self.x = x_inicial
-    self.y = y_inicial
-    self.direction = direccion_inicial  # 0:Este, 1:Norte, 2:Oeste, 3:Sur
-    self.mundo = self._crear_mundo(mundo)
-    self.beepers = {}
-    self.step = 0
-    self.images = []
-    self._render()  # Renderizar estado inicial
-
-def colocar_cosos_en_posicion(self, x, y, cantidad=1):
-    """Coloca una cantidad de cosos/zumbadores en una posición específica."""
-    self.beepers[(x, y)] = self.beepers.get((x, y), 0) + cantidad
-    self._render()
-
-def crear_mundo_personalizado(self, matriz):
-    """Define un mundo personalizado a partir de una matriz."""
-    self.mundo = matriz
-    self._render()
