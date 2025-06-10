@@ -286,12 +286,8 @@ class Karel:
             <div style='text-align:center; margin-top:10px;'>
                 <span style='margin:0 10px;'>Página {page} de {total_pages}</span>
                 <div style='margin-top:5px;'>
-                    <button onclick='IPython.notebook.kernel.execute(
-                        "_{0} = get_ipython().user_ns[\\"{0}\\"].\\n_{0}.ejecutar_acciones({max_images}, {max(1, page-1)})"
-                    )' style='padding:5px 10px; margin:0 5px;'>« Anterior</button>
-                    <button onclick='IPython.notebook.kernel.execute(
-                        "_{0} = get_ipython().user_ns[\\"{0}\\"].\\n_{0}.ejecutar_acciones({max_images}, {min(total_pages, page+1)})"
-                    )' style='padding:5px 10px; margin:0 5px;'>Siguiente »</button>
+                    <button onclick='IPython.notebook.kernel.execute("_{0} = get_ipython().user_ns[\\"{0}\\"]; _{0}.ejecutar_acciones({max_images}, {max(1, page-1)})")' style='padding:5px 10px; margin:0 5px;'>« Anterior</button>
+                    <button onclick='IPython.notebook.kernel.execute("_{0} = get_ipython().user_ns[\\"{0}\\"]; _{0}.ejecutar_acciones({max_images}, {min(total_pages, page+1)})")' style='padding:5px 10px; margin:0 5px;'>Siguiente »</button>
                 </div>
             </div>
             """.format(id(self))
@@ -397,9 +393,8 @@ class Karel:
         
         <script>
         (function() {{
-            // Store images in JavaScript
-            const images = {[f"'{i}':{repr(base64.b64encode(base64.b64decode(img)).decode('utf-8'))}" 
-                           for i, img in enumerate(self.images)]};
+            // Store images in JavaScript - directly use the encoded images
+            const images = {{ {", ".join([f"'{i}': '{img}'" for i, img in enumerate(self.images)])} }};
             
             // Animation variables
             let currentIdx = 0;
