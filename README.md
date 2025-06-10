@@ -24,7 +24,7 @@ Prepara la carpeta docs/:
     Copia el archivo .whl a docs/:
     bash
 
-cp dist/pykarel_web-0.1.0-py3-none-any.whl docs/
+cp dist/pykarel_web-0.2.7-py3-none-any.whl docs/
 
 
 Configura el YAML de tu documento Quarto:
