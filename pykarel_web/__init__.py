@@ -110,7 +110,7 @@ class Karel:
 
     def _render(self):
         """Renderiza el mundo con mejoras visuales"""
-        fig, ax = plt.subplots(figsize=(7,7))
+        fig, ax = plt.subplots(figsize=(10, 10))  # Increased figure size
         
         # Dibujar cuadrícula
         for x in range(len(self.mundo[0])+1):
@@ -132,10 +132,11 @@ class Karel:
         # Dibujar cosos/zumbadores
         for (x, y), cantidad in self.beepers.items():
             if cantidad > 0:
-                ax.plot(x + 0.5, y + 0.5, 'ro', markersize=15, alpha=0.5)
+                ax.plot(x + 0.5, y + 0.5, 'ro', markersize=18, alpha=0.5)  # Increased marker size
                 ax.text(x + 0.5, y + 0.5, str(cantidad), 
                        ha='center', va='center', 
-                       color='white', weight='bold')
+                       color='white', weight='bold',
+                       fontsize=12)  # Increased font size
         
         # Dibujar Karel
         colores = ['#e74c3c', '#2980b9', '#27ae60', '#f1c40f']
@@ -143,26 +144,37 @@ class Karel:
         ax.text(
             self.x + 0.5, self.y + 0.5, 
             arrow[self.direction],
-            fontsize=50,
+            fontsize=60,  # Increased font size
             color=colores[self.direction],
             ha='center', 
             va='center',
             fontweight='bold'
         )
         
-        # Configuración del gráfico
-        ax.set_xlim(0, len(self.mundo[0]))
-        ax.set_ylim(0, len(self.mundo))
-        ax.set_xticks(np.arange(0, len(self.mundo[0])+1))
-        ax.set_yticks(np.arange(0, len(self.mundo)+1))
-        ax.set_xticklabels([])
-        ax.set_yticklabels([])
-        ax.set_title(f"Karel - Paso {self.step}", fontweight='bold')
+        # Configuración del gráfico con coordenadas
+        ax.set_xlim(-0.5, len(self.mundo[0])-0.5)
+        ax.set_ylim(-0.5, len(self.mundo)-0.5)
+        
+        # Add coordinate labels
+        x_ticks = range(len(self.mundo[0]))
+        y_ticks = range(len(self.mundo))
+        ax.set_xticks(x_ticks)
+        ax.set_yticks(y_ticks)
+        ax.set_xticklabels([str(i) for i in x_ticks], fontsize=12)  # Increased font size
+        ax.set_yticklabels([str(i) for i in y_ticks], fontsize=12)  # Increased font size
+        
+        # Add labels for axes
+        ax.set_xlabel('X Coordinates', fontsize=14, labelpad=10)  # Increased font size
+        ax.set_ylabel('Y Coordinates', fontsize=14, labelpad=10)  # Increased font size
+        
+        # Additional formatting
+        ax.grid(True, linestyle=':', alpha=0.6)
+        ax.set_title(f"Karel - Paso {self.step}", fontweight='bold', pad=20, fontsize=16)  # Increased font size
         ax.set_aspect('equal')
         
         # Guardar imagen
         buf = BytesIO()
-        plt.savefig(buf, format='png', dpi=80)
+        plt.savefig(buf, format='png', dpi=100)  # Increased DPI
         plt.close()
         self.images.append(base64.b64encode(buf.getvalue()).decode('utf-8'))
         self.step += 1
@@ -238,15 +250,54 @@ class Karel:
     def front_is_clear(self):
         return self.frente_abierto()
     
-    def ejecutar_acciones(self, max_images=10, page=1):
-        """Displays a limited number of images with optional pagination."""
+    def ejecutar_acciones(self, max_images=8, page=1, show_controls=True):
+        """
+        Displays Karel's actions with pagination and navigation controls.
+        
+        Parameters:
+        -----------
+        max_images : int
+            Number of images to show per page
+        page : int
+            Current page to display
+        show_controls : bool
+            Whether to show pagination controls
+        """
+        total_pages = ((len(self.images) - 1) // max_images) + 1
+        
+        # Ensure page is within valid range
+        page = max(1, min(page, total_pages))
+        
         start = (page - 1) * max_images
-        end = start + max_images
-        html = "<div style='display:flex;flex-wrap:wrap'>"
+        end = min(start + max_images, len(self.images))
+        
+        # Style for individual images
+        img_style = "margin:5px; width:300px; border:1px solid #ddd; border-radius:5px;"
+        
+        # Create HTML for images
+        html = "<div style='display:flex; flex-wrap:wrap; justify-content:center;'>"
         for img in self.images[start:end]:
-            html += f"<img src='data:image/png;base64,{img}' style='margin:5px;width:200px'>"
+            html += f"<img src='data:image/png;base64,{img}' style='{img_style}'>"
         html += "</div>"
-        html += f"<p>Page {page} of {((len(self.images) - 1) // max_images) + 1}</p>"
+        
+        # Add pagination info and controls if needed
+        if show_controls and total_pages > 1:
+            html += f"""
+            <div style='text-align:center; margin-top:10px;'>
+                <span style='margin:0 10px;'>Página {page} de {total_pages}</span>
+                <div style='margin-top:5px;'>
+                    <button onclick='IPython.notebook.kernel.execute(
+                        "_{0} = get_ipython().user_ns[\\"{0}\\"].\\n_{0}.ejecutar_acciones({max_images}, {max(1, page-1)})"
+                    )' style='padding:5px 10px; margin:0 5px;'>« Anterior</button>
+                    <button onclick='IPython.notebook.kernel.execute(
+                        "_{0} = get_ipython().user_ns[\\"{0}\\"].\\n_{0}.ejecutar_acciones({max_images}, {min(total_pages, page+1)})"
+                    )' style='padding:5px 10px; margin:0 5px;'>Siguiente »</button>
+                </div>
+            </div>
+            """.format(id(self))
+        elif total_pages > 0:
+            html += f"<div style='text-align:center; margin-top:10px;'>Página {page} de {total_pages}</div>"
+        
         display(HTML(html))
     
     def girar_derecha(self):
@@ -306,7 +357,126 @@ class Karel:
         """Define un mundo personalizado a partir de una matriz."""
         self.mundo = matriz
         self._render()
-
+    
+    def mostrar_animacion(self, delay=500):
+        """
+        Displays all Karel's actions as an animation.
+        
+        Parameters:
+        -----------
+        delay : int
+            Delay between frames in milliseconds
+        """
+        if not self.images:
+            display(HTML("<p>No hay acciones para mostrar</p>"))
+            return
+        
+        # Generate unique ID for this animation
+        import random
+        container_id = f"karel_animation_{random.randint(10000, 99999)}"
+        
+        # Create HTML with images and animation controls
+        html = f"""
+        <div id="{container_id}" style="text-align:center;">
+            <img id="{container_id}_img" src="data:image/png;base64,{self.images[0]}" 
+                 style="width:500px; border:1px solid #ddd; border-radius:5px; margin-bottom:10px;">
+            <div style="margin:10px 0;">
+                <button id="{container_id}_prev" style="padding:5px 15px; margin:0 5px;">« Anterior</button>
+                <button id="{container_id}_play" style="padding:5px 15px; margin:0 5px;">▶ Reproducir</button>
+                <button id="{container_id}_pause" style="padding:5px 15px; margin:0 5px; display:none;">⏸ Pausar</button>
+                <button id="{container_id}_next" style="padding:5px 15px; margin:0 5px;">Siguiente »</button>
+            </div>
+            <div style="margin-top:10px;">
+                <span id="{container_id}_counter">Paso 1 de {len(self.images)}</span>
+                <div style="margin-top:10px;">
+                    <label for="{container_id}_speed">Velocidad: </label>
+                    <input type="range" id="{container_id}_speed" min="100" max="2000" value="{delay}" style="width:200px;">
+                </div>
+            </div>
+        </div>
+        
+        <script>
+        (function() {{
+            // Store images in JavaScript
+            const images = {[f"'{i}':{repr(base64.b64encode(base64.b64decode(img)).decode('utf-8'))}" 
+                           for i, img in enumerate(self.images)]};
+            
+            // Animation variables
+            let currentIdx = 0;
+            let animationId = null;
+            let animDelay = {delay};
+            
+            // Get DOM elements
+            const container = document.getElementById("{container_id}");
+            const img = document.getElementById("{container_id}_img");
+            const prevBtn = document.getElementById("{container_id}_prev");
+            const nextBtn = document.getElementById("{container_id}_next");
+            const playBtn = document.getElementById("{container_id}_play");
+            const pauseBtn = document.getElementById("{container_id}_pause");
+            const counter = document.getElementById("{container_id}_counter");
+            const speedControl = document.getElementById("{container_id}_speed");
+            
+            // Update display
+            function updateDisplay() {{
+                img.src = "data:image/png;base64," + images[currentIdx];
+                counter.textContent = `Paso ${{currentIdx + 1}} de {len(self.images)}`;
+            }}
+            
+            // Animation functions
+            function nextFrame() {{
+                currentIdx = (currentIdx + 1) % Object.keys(images).length;
+                updateDisplay();
+            }}
+            
+            function prevFrame() {{
+                currentIdx = (currentIdx - 1 + Object.keys(images).length) % Object.keys(images).length;
+                updateDisplay();
+            }}
+            
+            function startAnimation() {{
+                if (animationId) clearInterval(animationId);
+                animationId = setInterval(nextFrame, animDelay);
+                playBtn.style.display = "none";
+                pauseBtn.style.display = "inline";
+            }}
+            
+            function stopAnimation() {{
+                if (animationId) clearInterval(animationId);
+                animationId = null;
+                playBtn.style.display = "inline";
+                pauseBtn.style.display = "none";
+            }}
+            
+            // Event listeners
+            prevBtn.addEventListener("click", () => {{
+                stopAnimation();
+                prevFrame();
+            }});
+            
+            nextBtn.addEventListener("click", () => {{
+                stopAnimation();
+                nextFrame();
+            }});
+            
+            playBtn.addEventListener("click", startAnimation);
+            pauseBtn.addEventListener("click", stopAnimation);
+            
+            speedControl.addEventListener("change", () => {{
+                animDelay = parseInt(speedControl.value);
+                if (animationId) {{
+                    stopAnimation();
+                    startAnimation();
+                }}
+            }});
+            
+            // Initialize display
+            updateDisplay();
+        }})();
+        </script>
+        """
+        
+        display(HTML(html))
+        
 
 # Función de ayuda global
 def help():
