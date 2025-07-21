@@ -327,6 +327,10 @@ class Karel:
         """Verifica si hay un coso/zumbador en la posición actual."""
         return self.beepers.get((self.x, self.y), 0) > 0
     
+    def no_hay_coso(self):
+        """Verifica si no hay un coso/zumbador en la posición actual."""
+        return not self.hay_coso()
+    
     def izquierda_abierta(self):
         """Verifica si el camino a la izquierda está libre."""
         # Guardar dirección actual
